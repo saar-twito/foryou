@@ -2,10 +2,9 @@ import express from 'express';
 import xss from 'xss';
 import Product from '../models/Product.js';
 import { adminOnly } from '../middleware/auth.js';
-import { productValidation, queryValidation } from '../validation/product.js'; // Add this import
+import { productValidation, queryValidation } from '../validation/product.js';
 
 const router = express.Router();
-
 
 // GET /api/products - Paginated list with optional search (PUBLIC)
 router.get('/', async (req, res) => {
@@ -88,6 +87,46 @@ router.post('/', adminOnly, async (req, res) => {
     res.status(201).json(savedProduct);
   } catch (error) {
     res.status(400).json({ error: error.message });
+  }
+});
+
+// PUT /api/products/bulk-update-price - Bulk update prices (ADMIN ONLY)
+router.put('/bulk-update-price', adminOnly, async (req, res) => {
+  try {
+    const { ids, discountPercent } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Product IDs required' });
+    }
+    if (typeof discountPercent !== 'number' || discountPercent < 0 || discountPercent > 100) {
+      return res.status(400).json({ error: 'Discount must be 0-100%' });
+    }
+
+    const products = await Product.find({ _id: { $in: ids } });
+
+    if (products.length === 0) {
+      return res.status(404).json({ error: 'No products found' });
+    }
+
+    const bulkOps = products.map(product => {
+      const newPrice = Math.max(0.01, product.price * (1 - discountPercent / 100));
+      return {
+        updateOne: {
+          filter: { _id: product._id },
+          update: { $set: { price: Number(newPrice.toFixed(2)) } }
+        }
+      };
+    });
+
+    await Product.bulkWrite(bulkOps);
+    const updatedProducts = await Product.find({ _id: { $in: ids } });
+
+    res.json({
+      message: `Updated ${updatedProducts.length} products`,
+      updatedProducts
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 

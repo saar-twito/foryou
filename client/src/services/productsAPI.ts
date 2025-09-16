@@ -40,4 +40,14 @@ export const productAPI = {
       credentials: 'include',
     });
   },
+
+  bulkUpdatePrice: async (ids: string[], discountPercent: number) => {
+    const response = await fetch(`${API_BASE_URL}/products/bulk-update-price`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ ids, discountPercent }),
+    });
+    return response.json();
+  },
 };

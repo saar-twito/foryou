@@ -21,6 +21,9 @@ const AdminDashboard: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [currentSearch, setCurrentSearch] = useState('');
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [showBulkUpdate, setShowBulkUpdate] = useState(false);
+  const [discountPercent, setDiscountPercent] = useState(0);
 
   // Search validation schema
   const searchSchema = yup.object({
@@ -53,6 +56,7 @@ const AdminDashboard: React.FC = () => {
       setProducts(data.products);
       setCurrentPage(data.currentPage);
       setTotalPages(data.totalPages);
+      setSelectedProducts(new Set());
     } catch (error) {
       console.error('Error fetching products:', error);
     } finally {
@@ -104,6 +108,13 @@ const AdminDashboard: React.FC = () => {
   const handleDelete = async (id: string) => {
     try {
       await productAPI.deleteProduct(id);
+      // Remove from selection if it was selected
+      setSelectedProducts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
+
       // If we're on a page > 1 and it becomes empty after deletion,
       // we might want to go back to the previous page
       const remainingProducts = products.length - 1;
@@ -143,17 +154,132 @@ const AdminDashboard: React.FC = () => {
     fetchProducts(1, '');
   };
 
+  const handleProductSelect = (productId: string, isSelected: boolean) => {
+    setSelectedProducts(prev => {
+      const newSet = new Set(prev);
+      if (isSelected) {
+        newSet.add(productId);
+      } else {
+        newSet.delete(productId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = (isSelected: boolean) => {
+    if (isSelected) {
+      setSelectedProducts(new Set(products.map(p => p._id)));
+    } else {
+      setSelectedProducts(new Set());
+    }
+  };
+
+  const handleBulkUpdate = async () => {
+    try {
+      const result = await productAPI.bulkUpdatePrice(Array.from(selectedProducts), discountPercent);
+
+      // Update products in state with new prices
+      setProducts(prevProducts =>
+        prevProducts.map(product => {
+          const updated = result.updatedProducts.find((p: Product) => p._id === product._id);
+          return updated || product;
+        })
+      );
+
+      setSelectedProducts(new Set());
+      setShowBulkUpdate(false);
+      setDiscountPercent(0);
+      alert(result.message);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error) {
+      alert('Error updating prices');
+    }
+  };
+
   return (
     <div className={styles.admin}>
       <header className={styles.header}>
         <h1>Admin Dashboard</h1>
         <div className={styles.headerActions}>
           <Link to="/" className={styles.backLink}>← Back to Catalog</Link>
+          {selectedProducts.size > 0 && (
+            <button
+              onClick={() => setShowBulkUpdate(true)}
+              className={styles.bulkUpdateButton}
+            >
+              Bulk Update ({selectedProducts.size})
+            </button>
+          )}
           <button onClick={handleAddNew} className={styles.addButton}>
             Add Product
           </button>
         </div>
       </header>
+
+      {/* Simple bulk update modal */}
+      {showBulkUpdate && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white', padding: '2rem', borderRadius: '8px',
+            minWidth: '400px', textAlign: 'center'
+          }}>
+            <h3>Bulk Price Update</h3>
+            <p>Apply discount to {selectedProducts.size} selected products</p>
+            <input
+              type="number"
+              placeholder="Enter discount percentage (0-100)"
+              min="0"
+              max="100"
+              value={discountPercent}
+              onChange={(e) => setDiscountPercent(Number(e.target.value))}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                marginBottom: '1rem',
+                border: '1px solid #ccc',
+                borderRadius: '4px'
+              }}
+            />
+            {discountPercent > 0 && (
+              <p style={{ color: '#666', fontSize: '0.9rem' }}>
+                Example: $100.00 → ${(100 * (1 - discountPercent / 100)).toFixed(2)}
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <button
+                onClick={handleBulkUpdate}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                Apply Discount
+              </button>
+              <button
+                onClick={() => setShowBulkUpdate(false)}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search Section */}
       <div className={styles.searchSection}>
@@ -199,9 +325,12 @@ const AdminDashboard: React.FC = () => {
         currentPage={currentPage}
         totalPages={totalPages}
         loading={loading}
+        selectedProducts={selectedProducts}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onPageChange={handlePageChange}
+        onProductSelect={handleProductSelect}
+        onSelectAll={handleSelectAll}
       />
     </div>
   );
