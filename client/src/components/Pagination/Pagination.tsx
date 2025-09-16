@@ -10,19 +10,16 @@ interface PaginationProps {
 const Pagination: React.FC<PaginationProps> = ({
   currentPage,
   totalPages,
-  onPageChange
+  onPageChange,
 }) => {
-  // Don't render pagination if there's only one page or no pages
-  if (totalPages <= 1) {
-    return null;
-  }
+  if (totalPages <= 1) return null;
 
   return (
     <div className={styles.pagination}>
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className={styles.paginationButton}
+        className={styles.button}
       >
         Previous
       </button>
@@ -34,7 +31,7 @@ const Pagination: React.FC<PaginationProps> = ({
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className={styles.paginationButton}
+        className={styles.button}
       >
         Next
       </button>

@@ -71,17 +71,10 @@ const CustomerCatalog: React.FC = () => {
     return () => clearTimeout(timeoutId);
   }, [watchedSearch, currentSearch, fetchProducts]);
 
-  // Handle pagination changes
-  useEffect(() => {
-    if (currentPage > 1) {
-      fetchProducts(currentPage, currentSearch);
-    }
-  }, [currentPage, currentSearch, fetchProducts]);
-
   // Initial load
   useEffect(() => {
     fetchProducts(1, '');
-  }, []); // Only run on mount
+  }, []);
 
   const handleClearSearch = () => {
     reset();
@@ -92,6 +85,8 @@ const CustomerCatalog: React.FC = () => {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
+    // Fetch products immediately when page changes
+    fetchProducts(page, currentSearch);
   };
 
   return (
@@ -102,7 +97,7 @@ const CustomerCatalog: React.FC = () => {
           <div className={styles.searchInputContainer}>
             <input
               type="text"
-              placeholder="Start typing to search products..."
+              placeholder="Search products..."
               {...register('search')}
               className={`${styles.searchInput} ${errors.search ? styles.errorInput : ''}`}
             />
@@ -173,4 +168,4 @@ const CustomerCatalog: React.FC = () => {
   );
 };
 
-export default CustomerCatalog
+export default CustomerCatalog;

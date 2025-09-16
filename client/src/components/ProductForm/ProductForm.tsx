@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -50,20 +50,49 @@ const ProductForm: React.FC<ProductFormProps> = ({
   } = useForm<CreateProductData>({
     resolver: yupResolver(productSchema),
     defaultValues: {
-      name: editingProduct?.name || '',
-      price: editingProduct?.price || 0,
-      category: editingProduct?.category || '',
-      description: editingProduct?.description || ''
+      name: '',
+      price: 0,
+      category: '',
+      description: ''
     }
   });
 
+  // Update form values when editingProduct changes
+  useEffect(() => {
+    if (editingProduct) {
+      reset({
+        name: editingProduct.name,
+        price: editingProduct.price,
+        category: editingProduct.category,
+        description: editingProduct.description
+      });
+    } else {
+      reset({
+        name: '',
+        price: 0,
+        category: '',
+        description: ''
+      });
+    }
+  }, [editingProduct, reset]);
+
   const handleFormSubmit = async (data: CreateProductData) => {
     await onSubmit(data);
-    reset();
+    reset({
+      name: '',
+      price: 0,
+      category: '',
+      description: ''
+    });
   };
 
   const handleCancel = () => {
-    reset();
+    reset({
+      name: '',
+      price: 0,
+      category: '',
+      description: ''
+    });
     onCancel();
   };
 
