@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import connectDB from './config/database.js';
-import { seedData } from './seed.js';
 import productRoutes from './routes/products.js';
 import authRoutes from './routes/auth.js';
 
@@ -24,11 +23,6 @@ app.use(cookieParser());
 // Routes
 app.use('/api/products', productRoutes);
 app.use('/api/auth', authRoutes);
-
-// Health check route
-app.get('/api/health', (req, res) => {
-  res.json({ message: 'Server is running successfully!' });
-});
 
 // Start server
 app.listen(PORT, () => {

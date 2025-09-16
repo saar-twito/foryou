@@ -1,6 +1,9 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { registerValidation, loginValidation } from '../validation/auth.js';
+import validator from 'validator';
+import xss from 'xss';
 import User from '../models/User.js';
 
 const router = express.Router();
@@ -17,10 +20,20 @@ const setCookie = (res, token) => {
 // Register new user
 router.post('/register', async (req, res) => {
   try {
+    // Validate input
+    const { error } = registerValidation(req.body);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
     const { email, password, name, role = 'customer' } = req.body;
 
+    // Sanitize inputs
+    const sanitizedEmail = validator.normalizeEmail(email);
+    const sanitizedName = xss(name.trim());
+
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: sanitizedEmail });
     if (existingUser) {
       return res.status(400).json({ error: 'User already exists' });
     }
@@ -31,9 +44,9 @@ router.post('/register', async (req, res) => {
 
     // Create user
     const user = new User({
-      email,
+      email: sanitizedEmail,
       password: hashedPassword,
-      name,
+      name: sanitizedName,
       role
     });
 
@@ -66,10 +79,19 @@ router.post('/register', async (req, res) => {
 // Login user
 router.post('/login', async (req, res) => {
   try {
+    // Validate input
+    const { error } = loginValidation(req.body);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
     const { email, password } = req.body;
 
+    // Sanitize email
+    const sanitizedEmail = validator.normalizeEmail(email);
+
     // Find user
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: sanitizedEmail });
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }

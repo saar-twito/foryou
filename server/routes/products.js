@@ -1,21 +1,29 @@
 import express from 'express';
+import xss from 'xss';
 import Product from '../models/Product.js';
 import { adminOnly } from '../middleware/auth.js';
 
 const router = express.Router();
 
+
 // GET /api/products - Paginated list with optional search (PUBLIC)
 router.get('/', async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const search = req.query.search || '';
+    // Validate query parameters
+    const { error, value } = queryValidation(req.query);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
 
+    const { page, limit, search } = value;
     const skip = (page - 1) * limit;
 
+    // Sanitize search term
+    const sanitizedSearch = search ? xss(search.trim()) : '';
+
     // Build search query
-    const searchQuery = search ? {
-      name: { $regex: search, $options: 'i' }
+    const searchQuery = sanitizedSearch ? {
+      name: { $regex: sanitizedSearch, $options: 'i' }
     } : {};
 
     const products = await Product.find(searchQuery)
@@ -42,7 +50,9 @@ router.get('/', async (req, res) => {
 // GET /api/products/:id - Get specific product (PUBLIC)
 router.get('/:id', async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const productId = xss(req.params.id.trim());
+
+    const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
@@ -55,16 +65,25 @@ router.get('/:id', async (req, res) => {
 // POST /api/products - Create new product (ADMIN ONLY)
 router.post('/', adminOnly, async (req, res) => {
   try {
+    // Validate input
+    const { error } = productValidation(req.body);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
     const { name, price, category, description } = req.body;
 
-    const product = new Product({
-      name,
-      price,
-      category,
-      description
-    });
+    // Sanitize inputs
+    const sanitizedData = {
+      name: xss(name.trim()),
+      price: parseFloat(price),
+      category: xss(category.trim()),
+      description: xss(description.trim())
+    };
 
+    const product = new Product(sanitizedData);
     const savedProduct = await product.save();
+
     res.status(201).json(savedProduct);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -74,11 +93,26 @@ router.post('/', adminOnly, async (req, res) => {
 // PUT /api/products/:id - Update existing product (ADMIN ONLY)
 router.put('/:id', adminOnly, async (req, res) => {
   try {
+    // Validate input
+    const { error } = productValidation(req.body);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    const productId = xss(req.params.id.trim());
     const { name, price, category, description } = req.body;
 
+    // Sanitize inputs
+    const sanitizedData = {
+      name: xss(name.trim()),
+      price: parseFloat(price),
+      category: xss(category.trim()),
+      description: xss(description.trim())
+    };
+
     const product = await Product.findByIdAndUpdate(
-      req.params.id,
-      { name, price, category, description },
+      productId,
+      sanitizedData,
       { new: true, runValidators: true }
     );
 
@@ -95,7 +129,9 @@ router.put('/:id', adminOnly, async (req, res) => {
 // DELETE /api/products/:id - Delete product (ADMIN ONLY)
 router.delete('/:id', adminOnly, async (req, res) => {
   try {
-    const product = await Product.findByIdAndDelete(req.params.id);
+    const productId = xss(req.params.id.trim());
+
+    const product = await Product.findByIdAndDelete(productId);
 
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
