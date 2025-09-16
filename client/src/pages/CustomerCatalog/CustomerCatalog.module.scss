@@ -17,6 +17,11 @@
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
+  align-items: flex-start;
+}
+
+.searchInputContainer {
+  flex: 1;
 }
 
 .searchInput {
@@ -27,16 +32,17 @@
   font-size: 16px;
 }
 
-.searchButton {
-  padding: 10px 20px;
-  background-color: #007bff;
+.clearButton {
+  padding: 10px 15px;
+  background-color: #6c757d;
   color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  white-space: nowrap;
 
   &:hover {
-    background-color: #0056b3;
+    background-color: #5a6268;
   }
 }
 
@@ -89,30 +95,32 @@
   margin: 10px 0 0 0;
 }
 
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 20px;
-}
+.noResults {
+  text-align: center;
+  padding: 60px 20px;
 
-.paginationButton {
-  padding: 8px 16px;
-  border: 1px solid #ddd;
-  background: white;
-  border-radius: 4px;
-  cursor: pointer;
-
-  &:hover:not(:disabled) {
-    background-color: #f5f5f5;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  h1 {
+    color: #666;
+    font-size: 1.5rem;
+    margin: 0;
   }
 }
 
-.pageInfo {
-  font-weight: bold;
+.fieldError {
+  color: #e74c3c;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  display: block;
+}
+
+.errorInput {
+  border-color: #e74c3c;
+  box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.2);
+}
+
+.searchInfo {
+  margin: 15px 0 0 0;
+  color: #666;
+  font-size: 0.9rem;
+  font-style: italic;
 }

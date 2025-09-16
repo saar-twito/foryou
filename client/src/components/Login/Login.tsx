@@ -1,4 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import { useAuth } from '../../context/AuthContext';
 import styles from './Login.module.scss';
 import { authAPI } from '../../services/authAPI';
@@ -7,26 +10,71 @@ interface LoginProps {
   onClose: () => void;
 }
 
+interface LoginFormData {
+  email: string;
+  password: string;
+  name?: string;
+}
+
 const Login: React.FC<LoginProps> = ({ onClose }) => {
   const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    name: ''
-  });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const { login } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Base validation fields
+  const emailField = yup
+    .string()
+    .email('Invalid email format')
+    .required('Email is required');
+
+  const passwordField = yup
+    .string()
+    .min(6, 'Password must be at least 6 characters')
+    .required('Password is required');
+
+  const nameField = yup
+    .string()
+    .min(2, 'Name must be at least 2 characters')
+    .max(100, 'Name must not exceed 100 characters')
+    .matches(/^[a-zA-Z0-9]+$/, 'Name can only contain letters and numbers')
+    .required('Name is required');
+
+  // Validation schemas
+  const loginSchema = yup.object().shape({
+    email: emailField,
+    password: passwordField,
+  });
+
+  const registerSchema = yup.object().shape({
+    email: emailField,
+    password: passwordField,
+    name: nameField,
+  });
+
+  // Use the appropriate schema based on form mode
+  const currentSchema = useMemo(() =>
+    isLogin ? loginSchema : registerSchema, [isLogin]
+  );
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset
+  } = useForm<LoginFormData>({
+    resolver: yupResolver(currentSchema),
+    mode: 'onBlur'
+  });
+
+  const onSubmit = async (data: LoginFormData) => {
     setLoading(true);
     setError('');
 
     try {
       if (isLogin) {
-        const success = await login(formData.email, formData.password);
+        const success = await login(data.email, data.password);
         if (success) {
           onClose(); // Close the modal on successful login
         } else {
@@ -34,10 +82,10 @@ const Login: React.FC<LoginProps> = ({ onClose }) => {
         }
       } else {
         // Handle registration - role defaults to 'customer' in backend
-        const result = await authAPI.register(formData.email, formData.password, formData.name);
+        const result = await authAPI.register(data.email, data.password, data.name!);
         if (result.user) {
           // Auto-login after registration
-          await login(formData.email, formData.password);
+          await login(data.email, data.password);
           onClose();
         } else {
           setError('Registration failed');
@@ -51,37 +99,55 @@ const Login: React.FC<LoginProps> = ({ onClose }) => {
     }
   };
 
+  const handleModeSwitch = () => {
+    setIsLogin(!isLogin);
+    setError('');
+    reset(); // Clear form data and validation errors
+  };
+
   return (
     <div className={styles.overlay}>
-      <form onSubmit={handleSubmit} className={styles.loginForm}>
+      <form onSubmit={handleSubmit(onSubmit)} className={styles.loginForm}>
         <h2>{isLogin ? 'Login' : 'Register'}</h2>
 
         {error && <div className={styles.error}>{error}</div>}
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          required
-        />
+        <div>
+          <input
+            type="email"
+            placeholder="Email"
+            {...register('email')}
+            className={errors.email ? styles.errorInput : ''}
+          />
+          {errors.email && (
+            <span className={styles.fieldError}>{errors.email.message}</span>
+          )}
+        </div>
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={formData.password}
-          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-          required
-        />
+        <div>
+          <input
+            type="password"
+            placeholder="Password"
+            {...register('password')}
+            className={errors.password ? styles.errorInput : ''}
+          />
+          {errors.password && (
+            <span className={styles.fieldError}>{errors.password.message}</span>
+          )}
+        </div>
 
         {!isLogin && (
-          <input
-            type="text"
-            placeholder="Name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            required
-          />
+          <div>
+            <input
+              type="text"
+              placeholder="Name"
+              {...register('name')}
+              className={errors.name ? styles.errorInput : ''}
+            />
+            {errors.name && (
+              <span className={styles.fieldError}>{errors.name.message}</span>
+            )}
+          </div>
         )}
 
         <div className={styles.formActions}>
@@ -95,7 +161,7 @@ const Login: React.FC<LoginProps> = ({ onClose }) => {
           {isLogin ? "Don't have an account? " : "Already have an account? "}
           <button
             type="button"
-            onClick={() => setIsLogin(!isLogin)}
+            onClick={handleModeSwitch}
             className={styles.switchButton}
           >
             {isLogin ? 'Register' : 'Login'}

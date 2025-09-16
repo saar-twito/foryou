@@ -2,6 +2,7 @@ import express from 'express';
 import xss from 'xss';
 import Product from '../models/Product.js';
 import { adminOnly } from '../middleware/auth.js';
+import { productValidation, queryValidation } from '../validation/product.js'; // Add this import
 
 const router = express.Router();
 
